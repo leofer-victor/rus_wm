@@ -13,8 +13,9 @@ Never route the UI jog topic directly into an FCI velocity or torque interface.
 
 1. A state bridge publishing pose, joints, external wrench and controller mode with the
    exact message types in `README.md`.
-2. A jog adapter consuming one relative `Vector3Stamped`, transforming base/tool-frame
-   requests, checking freshness and limits, and producing a smooth bounded trajectory.
+2. Validate the supplied `deepusnav_jog_adapter` base/tool-frame signs, workspace bounds,
+   stale-data rejection and `/topic_joint_impedance_controller/target_pose` output. The
+   real-time controller must still own interpolation, force/collision and joint limits.
 3. Idempotent stop and reset services.  Stop cancels motion and holds safely; reset must
    not move unless the controller's own preconditions pass.
 4. A watchdog that stops on stale commands, stale perception, DDS loss, controller

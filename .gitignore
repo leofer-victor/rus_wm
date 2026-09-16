@@ -1,2 +1,3 @@
 .vscode
-rus_wm/__pycache__
+__pycache__/
+*.py[cod]

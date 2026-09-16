@@ -68,7 +68,7 @@ class DeepUSNavInference(Node):
             "atlas_target_tolerance_mm": 20.0,
             "device": "cuda",
             "ultrasound_topic": "/deepusnav/ultrasound/image",
-            "robot_pose_topic": "/fr3/state/current_pose",
+            "robot_pose_topic": "/fr3/current_pose",
             "status_topic": "/deepusnav/inference/status",
             "proposal_topic": "/deepusnav/inference/action_proposal",
             "enable_service": "/deepusnav/inference/set_enabled",

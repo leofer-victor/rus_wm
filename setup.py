@@ -28,6 +28,7 @@ setup(
         "console_scripts": [
             "deepusnav_console = rus_wm.deepusnav_console:main",
             "deepusnav_inference = rus_wm.deepusnav_inference:main",
+            "deepusnav_jog_adapter = rus_wm.jog_adapter:main",
         ],
     },
 )

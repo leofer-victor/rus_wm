@@ -9,6 +9,7 @@ control, robot limits and watchdogs.
 
 - `rus_wm/deepusnav_console.py`: ROS 2 node and Qt application.
 - `rus_wm/deepusnav_inference.py`: guarded checkpoint inference worker.
+- `rus_wm/jog_adapter.py`: guarded relative-jog to impedance-target adapter.
 - `rus_wm/atlas_runtime.py`: ROS-independent population-Atlas runtime.
 - `ui/deepusnav.ui`: editable Qt Designer source.
 - `config/deepusnav_console.yaml`: topic, frame, timeout and jog limits.
@@ -35,7 +36,7 @@ Subscriptions are configurable in `config/deepusnav_console.yaml`:
 | Data | Default topic | Type |
 |---|---|---|
 | Ultrasound | `/deepusnav/ultrasound/image` | `sensor_msgs/msg/Image` |
-| End-effector pose | `/fr3/state/current_pose` | `geometry_msgs/msg/PoseStamped` |
+| End-effector pose | `/fr3/current_pose` | `geometry_msgs/msg/PoseStamped` |
 | Joints | `/fr3/state/joint_states` | `sensor_msgs/msg/JointState` |
 | External wrench | `/fr3/state/external_wrench` | `geometry_msgs/msg/WrenchStamped` |
 | Robot mode | `/fr3/state/mode` | `std_msgs/msg/String` |
@@ -81,11 +82,18 @@ calibrated adapter must convert the SonoGym surface action to the robot/tool fra
 enforce workspace, velocity, force and watchdog limits. Begin with shadow mode.
 
 Each click on a jog button publishes one `geometry_msgs/msg/Vector3Stamped` on
-`/deepusnav/operator/jog_command`.  The vector is a **relative translation in metres**;
-`header.frame_id` selects base or tool axes.  Using a vector message prevents this
-request from being mistaken for a velocity command.  The real-time controller adapter must reject stale,
-out-of-workspace or unsafe requests, interpolate accepted requests and publish the
-resulting robot state.  Do not connect this topic directly to a velocity controller.
+`/deepusnav/operator/jog_command`. The vector is a **relative translation in metres**;
+`header.frame_id` selects base or tool axes. `deepusnav_jog_adapter` validates command
+and pose freshness, frame, step length, command interval, workspace bounds and controller
+discovery. It rotates tool-frame vectors into the base frame, adds the accepted delta to
+the latest measured pose, and publishes an absolute `geometry_msgs/msg/PoseStamped` on
+`/topic_joint_impedance_controller/target_pose`. The controller remains responsible for
+real-time interpolation, force/collision handling, joint limits and watchdog behavior.
+
+Every decision is published as JSON on `/deepusnav/operator/jog_status` and shown in the
+console notes field. Rejections never publish a controller target. Validate the configured
+workspace bounds and the `fr3_link0`/`fr3_hand_tcp` axis conventions without probe contact
+before enabling physical jogs.
 
 `/fr3/operator/stop` and `/fr3/operator/reset` are `std_srvs/srv/Trigger`.  Stop must be
 implemented as an idempotent hold/cancel operation on the controller computer.  It is an
@@ -97,7 +105,7 @@ operational stop, not a replacement for certified emergency-stop hardware.
 cd ~/projects/ros_projects/rus_wm
 source ~/miniconda3/bin/activate ruswm
 source /opt/ros/jazzy/setup.bash
-colcon build --symlink-install
+python -m colcon build --symlink-install
 source install/setup.bash
 ros2 launch rus_wm deepusnav_console.launch.py
 ```

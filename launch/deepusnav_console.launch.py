@@ -26,12 +26,23 @@ def generate_launch_description():
         output="screen",
         parameters=[config],
     )
+    jog_adapter = Node(
+        package="rus_wm",
+        executable="deepusnav_jog_adapter",
+        name="deepusnav_jog_adapter",
+        output="screen",
+        parameters=[config],
+    )
 
     return LaunchDescription([
         DeclareLaunchArgument("config", default_value=default_config),
         inference,
+        jog_adapter,
         console,
         RegisterEventHandler(
             OnProcessExit(target_action=console, on_exit=[Shutdown()])
+        ),
+        RegisterEventHandler(
+            OnProcessExit(target_action=jog_adapter, on_exit=[Shutdown()])
         ),
     ])

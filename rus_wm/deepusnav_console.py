@@ -77,6 +77,7 @@ class DeepUSNavRosNode(Node):
             "atlas_result_topic": "/deepusnav/atlas/localisation",
             "inference_enable_service": "/deepusnav/inference/set_enabled",
             "jog_command_topic": "/deepusnav/operator/jog_command",
+            "jog_status_topic": "/deepusnav/operator/jog_status",
             "stop_service": "/fr3/operator/stop",
             "reset_service": "/fr3/operator/reset",
             "base_frame": "fr3_link0",
@@ -90,12 +91,14 @@ class DeepUSNavRosNode(Node):
             "bag_directory": "~/deepusnav_bags",
             "record_topics": [
                 "/deepusnav/ultrasound/image",
-                "/fr3/state/current_pose",
+                "/fr3/current_pose",
                 "/fr3/state/joint_states",
                 "/fr3/state/external_wrench",
                 "/fr3/state/mode",
                 "/deepusnav/inference/status",
                 "/deepusnav/operator/jog_command",
+                "/deepusnav/operator/jog_status",
+                "/topic_joint_impedance_controller/target_pose",
             ],
         }
         for name, value in defaults.items():
@@ -110,6 +113,7 @@ class DeepUSNavRosNode(Node):
         self.robot_mode = "unknown"
         self.inference_status = "not connected"
         self.atlas_result: dict | None = None
+        self.jog_status: dict | None = None
         self.received_at: dict[str, float] = {}
         self.image_times: list[float] = []
 
@@ -134,6 +138,9 @@ class DeepUSNavRosNode(Node):
         )
         self.create_subscription(
             String, self.params["atlas_result_topic"], self._on_atlas, status_qos
+        )
+        self.create_subscription(
+            String, self.params["jog_status_topic"], self._on_jog_status, 10
         )
 
         self.jog_publisher = self.create_publisher(
@@ -201,6 +208,15 @@ class DeepUSNavRosNode(Node):
             self._stamp("atlas")
         except (json.JSONDecodeError, ValueError) as exc:
             self.get_logger().error(f"invalid Atlas result: {exc}")
+
+    def _on_jog_status(self, msg: String) -> None:
+        try:
+            status = json.loads(msg.data)
+            if not isinstance(status, dict) or not isinstance(status.get("accepted"), bool):
+                raise ValueError("expected a JSON object with an accepted boolean")
+            self.jog_status = status
+        except (json.JSONDecodeError, ValueError) as exc:
+            self.get_logger().error(f"invalid jog adapter status: {exc}")
 
     @property
     def image_rate_hz(self) -> float:
@@ -310,6 +326,7 @@ class DeepUSNavConsole(QMainWindow):
         self.display_timer = QTimer(self)
         self.display_timer.timeout.connect(self.refresh)
         self.display_timer.start(50)
+        self.last_jog_status: dict | None = None
 
         initial_cbct = str(self.ros.params["cbct_directory"])
         if initial_cbct and Path(initial_cbct).expanduser().is_dir():
@@ -389,6 +406,10 @@ class DeepUSNavConsole(QMainWindow):
             else "color: #ff6666"
         )
         self.ui.inference_status.setText(f"Inference: {self.ros.inference_status}")
+        if self.ros.jog_status is not None and self.ros.jog_status != self.last_jog_status:
+            self.last_jog_status = self.ros.jog_status
+            reason = str(self.ros.jog_status.get("reason", "Jog adapter status changed"))
+            self.set_note(reason, bool(self.ros.jog_status["accepted"]))
         self._refresh_atlas()
 
     def _refresh_atlas(self) -> None:

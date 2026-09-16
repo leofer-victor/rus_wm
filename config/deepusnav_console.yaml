@@ -1,8 +1,8 @@
 deepusnav_console:
   ros__parameters:
     ultrasound_topic: /deepusnav/ultrasound/image
-    robot_pose_topic: /fr3/state/current_pose
-    robot_joint_state_topic: /fr3/state/joint_states
+    robot_pose_topic: /fr3/current_pose
+    robot_joint_state_topic: /fr3/joint_states
     robot_wrench_topic: /fr3/state/external_wrench
     robot_mode_topic: /fr3/state/mode
     inference_status_topic: /deepusnav/inference/status
@@ -10,6 +10,7 @@ deepusnav_console:
     inference_enable_service: /deepusnav/inference/set_enabled
 
     jog_command_topic: /deepusnav/operator/jog_command
+    jog_status_topic: /deepusnav/operator/jog_status
     stop_service: /fr3/operator/stop
     reset_service: /fr3/operator/reset
 
@@ -25,7 +26,7 @@ deepusnav_console:
     bag_directory: ~/deepusnav_bags
     record_topics:
       - /deepusnav/ultrasound/image
-      - /fr3/state/current_pose
+      - /fr3/current_pose
       - /fr3/state/joint_states
       - /fr3/state/external_wrench
       - /fr3/state/mode
@@ -33,6 +34,30 @@ deepusnav_console:
       - /deepusnav/inference/action_proposal
       - /deepusnav/atlas/localisation
       - /deepusnav/operator/jog_command
+      - /deepusnav/operator/jog_status
+      - /topic_joint_impedance_controller/target_pose
+
+deepusnav_jog_adapter:
+  ros__parameters:
+    robot_pose_topic: /fr3/current_pose
+    jog_command_topic: /deepusnav/operator/jog_command
+    target_pose_topic: /topic_joint_impedance_controller/target_pose
+    status_topic: /deepusnav/operator/jog_status
+
+    # The controller interprets every target PoseStamped in the robot base frame.
+    base_frame: fr3_link0
+    tool_frame: fr3_hand_tcp
+
+    # Guard every relative request before converting it to an absolute pose target.
+    pose_timeout_sec: 0.5
+    command_timeout_sec: 0.5
+    max_jog_step_mm: 5.0
+    min_command_interval_sec: 0.15
+    require_controller_subscriber: true
+
+    # Validate these conservative deployment bounds on the physical phantom setup.
+    workspace_min_xyz_m: [-0.8, -0.8, 0.05]
+    workspace_max_xyz_m: [0.8, 0.8, 1.0]
 
 deepusnav_inference:
   ros__parameters:
@@ -53,7 +78,7 @@ deepusnav_inference:
     atlas_target_tolerance_mm: 20.0
 
     ultrasound_topic: /deepusnav/ultrasound/image
-    robot_pose_topic: /fr3/state/current_pose
+    robot_pose_topic: /fr3/current_pose
     status_topic: /deepusnav/inference/status
     proposal_topic: /deepusnav/inference/action_proposal
     enable_service: /deepusnav/inference/set_enabled
