@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DeepUSNavConsole</class>
+ <widget class="QMainWindow" name="DeepUSNavConsole">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>1500</width><height>900</height></rect>
+  </property>
+  <property name="minimumSize">
+   <size><width>1200</width><height>760</height></size>
+  </property>
+  <property name="windowTitle"><string>DeepUSNav — FR3 Operator Console</string></property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="styleSheet">
+    <string notr="true">* { background-color: #25272b; color: #e7e7e7; font-size: 12pt; }
+QGroupBox { border: 1px solid #59606a; border-radius: 4px; margin-top: 12px; padding-top: 10px; font-weight: bold; }
+QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
+QPushButton { background-color: #41464f; border: 1px solid #69717d; border-radius: 3px; padding: 7px; }
+QPushButton:hover { background-color: #515965; }
+QPushButton:pressed { background-color: #30353c; }
+QPushButton:disabled { color: #777; background-color: #303236; }
+QPushButton#stop_robot { background-color: #9d3434; font-weight: bold; }
+QGraphicsView { background-color: #000; border: 1px solid #59606a; }
+QLabel#notes { background-color: #191b1e; border: 1px solid #454a52; padding: 6px; }
+QDoubleSpinBox, QComboBox { background-color: #353941; border: 1px solid #69717d; padding: 4px; }</string>
+   </property>
+   <layout class="QVBoxLayout" name="root_layout">
+    <property name="spacing"><number>8</number></property>
+    <item>
+     <widget class="QSplitter" name="main_splitter">
+      <property name="orientation"><enum>Qt::Horizontal</enum></property>
+      <widget class="QWidget" name="observation_panel">
+       <layout class="QVBoxLayout" name="observation_layout">
+        <item><widget class="QLabel" name="us_title"><property name="text"><string>Live ultrasound</string></property><property name="styleSheet"><string notr="true">font-size: 14pt; font-weight: bold;</string></property></widget></item>
+        <item><widget class="QGraphicsView" name="us_view"><property name="minimumSize"><size><width>640</width><height>480</height></size></property></widget></item>
+        <item><widget class="QLabel" name="us_status"><property name="text"><string>US: waiting</string></property></widget></item>
+        <item>
+         <widget class="QGroupBox" name="robot_state_group">
+          <property name="title"><string>FR3 state</string></property>
+          <layout class="QVBoxLayout" name="robot_state_layout">
+           <item><widget class="QLabel" name="robot_status"><property name="text"><string>Robot: disconnected</string></property><property name="styleSheet"><string notr="true">font-weight: bold; color: #ff6666;</string></property></widget></item>
+           <item><widget class="QLabel" name="robot_pose"><property name="text"><string>waiting for robot pose</string></property><property name="font"><font><family>Monospace</family></font></property></widget></item>
+           <item><widget class="QLabel" name="joint_state"><property name="text"><string>q: waiting</string></property><property name="wordWrap"><bool>true</bool></property><property name="font"><font><family>Monospace</family></font></property></widget></item>
+           <item><widget class="QLabel" name="wrench_state"><property name="text"><string>External wrench: waiting</string></property><property name="font"><font><family>Monospace</family></font></property></widget></item>
+           <item><widget class="QLabel" name="inference_status"><property name="text"><string>Inference: not connected</string></property></widget></item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="planning_panel">
+       <layout class="QVBoxLayout" name="planning_layout">
+        <item>
+         <widget class="QGroupBox" name="cbct_group">
+          <property name="title"><string>CBCT (visualization only)</string></property>
+          <layout class="QVBoxLayout" name="cbct_layout">
+           <item><layout class="QVBoxLayout" name="vtk_volume"/></item>
+           <item><widget class="QLabel" name="cbct_path"><property name="text"><string>No CBCT loaded</string></property><property name="wordWrap"><bool>true</bool></property></widget></item>
+           <item><widget class="QPushButton" name="load_cbct"><property name="text"><string>Load CBCT DICOM directory</string></property></widget></item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="jog_group">
+          <property name="title"><string>Manual Cartesian jog</string></property>
+          <layout class="QVBoxLayout" name="jog_outer_layout">
+           <item>
+            <layout class="QHBoxLayout" name="jog_options_layout">
+             <item><widget class="QLabel" name="jog_step_label"><property name="text"><string>Step [mm]</string></property></widget></item>
+             <item><widget class="QDoubleSpinBox" name="jog_step_mm"><property name="minimum"><double>0.100000000000000</double></property><property name="maximum"><double>5.000000000000000</double></property><property name="singleStep"><double>0.100000000000000</double></property><property name="value"><double>1.000000000000000</double></property></widget></item>
+             <item><widget class="QLabel" name="jog_frame_label"><property name="text"><string>Frame</string></property></widget></item>
+             <item><widget class="QComboBox" name="jog_frame"/></item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QGridLayout" name="jog_buttons_layout">
+             <item row="0" column="0"><widget class="QPushButton" name="jog_x_neg"><property name="text"><string>−X</string></property></widget></item>
+             <item row="0" column="1"><widget class="QPushButton" name="jog_x_pos"><property name="text"><string>+X</string></property></widget></item>
+             <item row="1" column="0"><widget class="QPushButton" name="jog_y_neg"><property name="text"><string>−Y</string></property></widget></item>
+             <item row="1" column="1"><widget class="QPushButton" name="jog_y_pos"><property name="text"><string>+Y</string></property></widget></item>
+             <item row="2" column="0"><widget class="QPushButton" name="jog_z_neg"><property name="text"><string>−Z</string></property></widget></item>
+             <item row="2" column="1"><widget class="QPushButton" name="jog_z_pos"><property name="text"><string>+Z</string></property></widget></item>
+            </layout>
+           </item>
+           <item><widget class="QCheckBox" name="enable_jog"><property name="text"><string>Enable manual jog (operator acknowledgement)</string></property></widget></item>
+           <item><widget class="QLabel" name="jog_contract"><property name="text"><string>Each click sends one relative displacement request. The real-time controller must validate, interpolate and execute it.</string></property><property name="wordWrap"><bool>true</bool></property><property name="styleSheet"><string notr="true">color: #d6b66b;</string></property></widget></item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+    <item><widget class="QLabel" name="notes"><property name="minimumSize"><size><width>0</width><height>42</height></size></property><property name="text"><string>Ready. Commands remain locked until manual jog is enabled.</string></property></widget></item>
+    <item>
+     <layout class="QHBoxLayout" name="bottom_bar">
+      <item><widget class="QPushButton" name="record"><property name="text"><string>Start rosbag2</string></property></widget></item>
+      <item><widget class="QPushButton" name="stop_record"><property name="enabled"><bool>false</bool></property><property name="text"><string>Stop recording</string></property></widget></item>
+      <item><widget class="QPushButton" name="start_inference"><property name="text"><string>Start inference</string></property></widget></item>
+      <item><widget class="QPushButton" name="stop_inference"><property name="enabled"><bool>false</bool></property><property name="text"><string>Stop inference</string></property></widget></item>
+      <item><spacer name="bottom_spacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+      <item><widget class="QPushButton" name="reset_robot"><property name="text"><string>Reset controller</string></property></widget></item>
+      <item><widget class="QPushButton" name="stop_robot"><property name="text"><string>STOP MOTION</string></property></widget></item>
+      <item><widget class="QPushButton" name="quit"><property name="text"><string>Quit</string></property></widget></item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
