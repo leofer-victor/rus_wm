@@ -23,19 +23,38 @@ Never route the UI jog topic directly into an FCI velocity or torque interface.
    request identifier and final achieved displacement.  This should be added before
    autonomous model commands are enabled.
 
-## Inference work not supplied by the UI package
+## Current inference scope and remaining work
 
 The downloaded world-model checkpoints predict a successor latent; they are not a robot
-policy.  A separate inference node still needs to provide:
+policy. The supplied inference node now provides the matching grayscale/letterbox/ImageNet
+preprocessing, frozen visual encoder, one-step World Model proposals, and single-frame
+population-Atlas retrieval. Before motion, the deployment still needs:
 
-- the matching frozen DINOv2 or V-JEPA2 encoder and its checksum;
-- the exact grayscale, letterbox and ImageNet-normalization preprocessing;
 - a four-frame history aligned with the actions that were actually achieved;
 - candidate action generation within the training support;
-- a deployable goal/localization scorer (coordinate head, metric Atlas, or an explicitly
-  labelled same-phantom reference image);
-- confidence/OOD detection and a no-motion result when confidence is insufficient;
+- a calibrated mapping from the SonoGym surface action to bounded robot/tool motion;
+- validated confidence/OOD thresholds and a no-motion result when confidence is
+  insufficient;
 - inference latency, selected action and health diagnostics for the UI and rosbag2.
+
+The Atlas panel is diagnostic. `u_hat`, the L4 offset, neighbour spread and target
+probability are estimates in a population canonical anatomy; none is an FR3 pose. The
+current single-frame Atlas has a recorded held-out median localisation error of about
+26.3 mm, so `within_target` is a planning signal to validate on the phantom, not an
+arrival certificate.
+
+Before every Atlas session:
+
+1. Run `sha256sum -c SHA256SUMS.runtime` inside
+   `training_setup_and_weights/atlas`.
+2. Confirm that the status panel names `vjepa2_vitl`, `grid4x4`, `spine_cpr`, and a
+   90,800-row bank.
+3. Replay a recorded ultrasound bag with robot output disconnected and confirm that
+   `/deepusnav/atlas/localisation` is recorded at the configured inference rate.
+4. Check a labelled phantom sweep: the reported cranio-caudal trend must follow the
+   sweep direction, and repeated stationary frames must remain stable.
+5. Treat stale results, non-finite values, high neighbour spread or an inference exception
+   as no-motion conditions downstream.
 
 CBCT may be displayed and used to establish phantom evaluation ground truth.  It must not
 be passed to a policy evaluated under the ultrasound-only protocol.

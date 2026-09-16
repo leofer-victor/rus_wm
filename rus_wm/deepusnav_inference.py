@@ -1,5 +1,5 @@
 """
-ROS 2 inference worker for the DeepUSNav latent world-model checkpoints.
+ROS 2 inference worker for DeepUSNav world models and population-atlas localisation.
 
 The worker deliberately publishes policy-space proposals on its own topic.  It never
 publishes Cartesian jog commands: converting the SonoGym surface action ``(dx, dz,
@@ -10,6 +10,7 @@ on the controller computer.
 from __future__ import annotations
 
 import importlib.util
+import json
 import math
 import os
 from pathlib import Path
@@ -30,6 +31,8 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Float32MultiArray, String
 from std_srvs.srv import SetBool
 
+from .atlas_runtime import AtlasRuntime
+
 
 def _sensor_qos() -> QoSProfile:
     return QoSProfile(
@@ -45,13 +48,24 @@ class DeepUSNavInference(Node):
 
     def __init__(self) -> None:
         super().__init__("deepusnav_inference")
+        default_root = Path.home() / "projects" / "python_projects" / "deepusnav"
         defaults = {
-            "deepusnav_root": "/home/robus/projects/python_projects/deepusnav",
-            "checkpoint_path": (
-                "/home/robus/projects/python_projects/deepusnav/"
+            "deepusnav_root": str(default_root),
+            "checkpoint_path": str(default_root.joinpath(
                 "training_setup_and_weights/checkpoints/dinov2_dino_wm_main.pt"
-            ),
+            )),
             "goal_image_path": "",
+            "atlas_enabled": True,
+            "atlas_index_path": str(default_root.joinpath(
+                "training_setup_and_weights/atlas/heads/",
+                "vjepa2_vitl__grid4x4__metric.pt",
+            )),
+            "atlas_target_path": str(
+                default_root / "training_setup_and_weights/atlas/target_spine_cpr.json"
+            ),
+            "atlas_result_topic": "/deepusnav/atlas/localisation",
+            "atlas_k": 8,
+            "atlas_target_tolerance_mm": 20.0,
             "device": "cuda",
             "ultrasound_topic": "/deepusnav/ultrasound/image",
             "robot_pose_topic": "/fr3/state/current_pose",
@@ -97,17 +111,43 @@ class DeepUSNavInference(Node):
         self.proposal_publisher = self.create_publisher(
             Float32MultiArray, self.params["proposal_topic"], 10
         )
+        self.atlas_publisher = self.create_publisher(
+            String, self.params["atlas_result_topic"], status_qos
+        )
         self.create_service(
             SetBool, self.params["enable_service"], self._set_enabled,
             callback_group=callbacks,
         )
 
-        self._publish_status("loading model")
+        self._publish_status("loading world model")
         self._load_model()
+        self.atlas = None
+        if bool(self.params["atlas_enabled"]):
+            self._publish_status("loading population atlas")
+            self.atlas = AtlasRuntime(
+                deepusnav_root=self.params["deepusnav_root"],
+                index_path=self.params["atlas_index_path"],
+                target_path=self.params["atlas_target_path"],
+                device=self.device,
+                k=int(self.params["atlas_k"]),
+                target_tolerance_mm=float(self.params["atlas_target_tolerance_mm"]),
+                encoder_cache={
+                    self.encoder_name: (
+                        self.encoder,
+                        self.input_size,
+                        self.patch,
+                        self.feature_key,
+                    )
+                },
+            )
+            info = String()
+            info.data = json.dumps({"status": "ready", **self.atlas.model_info()})
+            self.atlas_publisher.publish(info)
         period = 1.0 / max(0.1, float(self.params["inference_rate_hz"]))
         self.create_timer(period, self._tick, callback_group=callbacks)
         mode = "goal-directed" if self.goal_latent is not None else "shadow"
-        self._publish_status(f"ready ({mode}, {self.device})")
+        atlas_mode = ", atlas" if self.atlas is not None else ""
+        self._publish_status(f"ready ({mode}{atlas_mode}, {self.device})")
 
     def _publish_status(self, text: str) -> None:
         msg = String()
@@ -280,16 +320,30 @@ class DeepUSNavInference(Node):
         self._busy = True
         try:
             proposal, elapsed_ms = self._infer(image)
+            atlas_ms = None
+            if self.atlas is not None:
+                atlas_result = self.atlas.localise(image)
+                atlas_result["stamp"] = self.get_clock().now().nanoseconds / 1e9
+                atlas_msg = String()
+                atlas_msg.data = json.dumps(atlas_result, separators=(",", ":"))
+                self.atlas_publisher.publish(atlas_msg)
+                atlas_ms = float(atlas_result["latency_ms"])
             if proposal is None:
+                timing = f"WM {elapsed_ms:.0f} ms"
+                if atlas_ms is not None:
+                    timing += f" | Atlas {atlas_ms:.0f} ms"
                 self._publish_status(
-                    f"running shadow | {self.encoder_name} | {elapsed_ms:.0f} ms"
+                    f"running shadow | {self.encoder_name} | {timing}"
                 )
                 return
             msg = Float32MultiArray()
             msg.data = [float(v) for v in proposal]
             self.proposal_publisher.publish(msg)
             action = ", ".join(f"{v:+.2f}" for v in proposal)
-            self._publish_status(f"running | action [{action}] | {elapsed_ms:.0f} ms")
+            timing = f"WM {elapsed_ms:.0f} ms"
+            if atlas_ms is not None:
+                timing += f" | Atlas {atlas_ms:.0f} ms"
+            self._publish_status(f"running | action [{action}] | {timing}")
         except Exception as exc:
             self._enabled = False
             self._publish_status(f"error: {type(exc).__name__}: {exc}")

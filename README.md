@@ -9,6 +9,7 @@ control, robot limits and watchdogs.
 
 - `rus_wm/deepusnav_console.py`: ROS 2 node and Qt application.
 - `rus_wm/deepusnav_inference.py`: guarded checkpoint inference worker.
+- `rus_wm/atlas_runtime.py`: ROS-independent population-Atlas runtime.
 - `ui/deepusnav.ui`: editable Qt Designer source.
 - `config/deepusnav_console.yaml`: topic, frame, timeout and jog limits.
 - `launch/deepusnav_console.launch.py`: ROS 2 launch file.
@@ -39,12 +40,34 @@ Subscriptions are configurable in `config/deepusnav_console.yaml`:
 | External wrench | `/fr3/state/external_wrench` | `geometry_msgs/msg/WrenchStamped` |
 | Robot mode | `/fr3/state/mode` | `std_msgs/msg/String` |
 | Inference health | `/deepusnav/inference/status` | `std_msgs/msg/String` |
+| Atlas localisation | `/deepusnav/atlas/localisation` | `std_msgs/msg/String` (JSON) |
 
 The **Start inference** button calls `/deepusnav/inference/set_enabled`
 (`std_srvs/srv/SetBool`). It is accepted only while both the ultrasound image and robot
 pose are fresh and the pose contains finite values with a valid quaternion. The inference
 worker repeats the same checks before every model call and pauses if either stream becomes
 stale.
+
+When Atlas is enabled, the same guarded inference cycle also passes the current frame
+through the frozen V-JEPA2 ViT-L encoder, the trained metric head, and the 90,800-row
+retrieval bank. The UI reports:
+
+- the estimated coordinate `u_hat` in the `spine_cpr` canonical frame;
+- signed canonical-axis offset to the population L4 target, converted to millimetres;
+- expected distance to L4 over the complete k-neighbour posterior;
+- posterior mass within the configured L4 tolerance;
+- neighbour spread, entropy, patient diversity and inference latency.
+
+`/deepusnav/atlas/localisation` contains a versioned JSON object so it can be recorded in a
+rosbag and consumed without a custom ROS message build. Important fields are
+`coordinate_u`, `offset_to_target_mm`, `expected_goal_distance_mm`, `target_probability`,
+`neighbour_spread_mm`, `within_target`, `k`, `bank_size`, and `latency_ms`.
+
+The expected goal cost is computed over all retrieved neighbour coordinates. It is not
+the distance of the posterior mean alone, because neighbours split between L3 and L5 can
+otherwise average to a false L4 solution. Atlas coordinates and offsets are anatomical
+estimates; they are not coordinates in `fr3_link0` or the tool frame and must not be sent
+directly to a robot controller.
 
 The default checkpoint is `dinov2_dino_wm_main.pt`. Its predictor is a latent world model,
 not a direct Cartesian controller. With `goal_image_path` empty it therefore runs in
@@ -71,8 +94,8 @@ operational stop, not a replacement for certified emergency-stop hardware.
 ## Build and run
 
 ```bash
-cd /home/robus/projects/ros_projects/rus_wm
-source /home/robus/miniconda3/bin/activate ruswm
+cd ~/projects/ros_projects/rus_wm
+source ~/miniconda3/bin/activate ruswm
 source /opt/ros/jazzy/setup.bash
 colcon build --symlink-install
 source install/setup.bash
@@ -87,6 +110,25 @@ The inference process additionally needs the `deepusnav` environment (PyTorch an
 editable `deepusnav` package). The DINOv2 encoder weights must already exist at
 `checkpoints/torch/hub/checkpoints/dinov2_vits14_pretrain.pth`; inference never downloads
 weights during an experiment. Configure all paths in `config/deepusnav_console.yaml`.
+
+Atlas additionally requires these local files under the configured `deepusnav_root`:
+
+```text
+checkpoints/vjepa2/vitl.pt
+references/repos/vjepa2/
+training_setup_and_weights/atlas/target_spine_cpr.json
+training_setup_and_weights/atlas/heads/vjepa2_vitl__grid4x4__metric.pt
+```
+
+The 3.3 GB `features/*.npz.x.npy` cache is a training artifact and is intentionally not
+loaded online. The metric checkpoint already contains the trained head, bank embeddings,
+bank coordinates and provenance needed at runtime.
+
+Inspect a live result with:
+
+```bash
+ros2 topic echo /deepusnav/atlas/localisation std_msgs/msg/String --once
+```
 
 ## Network boundary
 

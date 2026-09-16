@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'deepusnav.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.11.2
+## Created by: Qt User Interface Compiler version 6.11.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -134,6 +134,57 @@ class Ui_DeepUSNavConsole(object):
 
 
         self.planning_layout.addWidget(self.cbct_group)
+
+        self.atlas_group = QGroupBox(self.planning_panel)
+        self.atlas_group.setObjectName(u"atlas_group")
+        self.atlas_layout = QVBoxLayout(self.atlas_group)
+        self.atlas_layout.setObjectName(u"atlas_layout")
+        self.atlas_status = QLabel(self.atlas_group)
+        self.atlas_status.setObjectName(u"atlas_status")
+        self.atlas_status.setStyleSheet(u"color: #ff6666; font-weight: bold;")
+
+        self.atlas_layout.addWidget(self.atlas_status)
+
+        self.atlas_coordinate = QLabel(self.atlas_group)
+        self.atlas_coordinate.setObjectName(u"atlas_coordinate")
+        self.atlas_coordinate.setFont(font)
+
+        self.atlas_layout.addWidget(self.atlas_coordinate)
+
+        self.atlas_offset = QLabel(self.atlas_group)
+        self.atlas_offset.setObjectName(u"atlas_offset")
+        self.atlas_offset.setFont(font)
+
+        self.atlas_layout.addWidget(self.atlas_offset)
+
+        self.atlas_goal = QLabel(self.atlas_group)
+        self.atlas_goal.setObjectName(u"atlas_goal")
+        self.atlas_goal.setWordWrap(True)
+
+        self.atlas_layout.addWidget(self.atlas_goal)
+
+        self.atlas_belief = QLabel(self.atlas_group)
+        self.atlas_belief.setObjectName(u"atlas_belief")
+        self.atlas_belief.setWordWrap(True)
+
+        self.atlas_layout.addWidget(self.atlas_belief)
+
+        self.atlas_model = QLabel(self.atlas_group)
+        self.atlas_model.setObjectName(u"atlas_model")
+        self.atlas_model.setWordWrap(True)
+        self.atlas_model.setStyleSheet(u"color: #aeb7c4; font-size: 10pt;")
+
+        self.atlas_layout.addWidget(self.atlas_model)
+
+        self.atlas_contract = QLabel(self.atlas_group)
+        self.atlas_contract.setObjectName(u"atlas_contract")
+        self.atlas_contract.setWordWrap(True)
+        self.atlas_contract.setStyleSheet(u"color: #d6b66b; font-size: 10pt;")
+
+        self.atlas_layout.addWidget(self.atlas_contract)
+
+
+        self.planning_layout.addWidget(self.atlas_group)
 
         self.jog_group = QGroupBox(self.planning_panel)
         self.jog_group.setObjectName(u"jog_group")
@@ -294,6 +345,14 @@ class Ui_DeepUSNavConsole(object):
         self.cbct_group.setTitle(QCoreApplication.translate("DeepUSNavConsole", u"CBCT (visualization only)", None))
         self.cbct_path.setText(QCoreApplication.translate("DeepUSNavConsole", u"No CBCT loaded", None))
         self.load_cbct.setText(QCoreApplication.translate("DeepUSNavConsole", u"Load CBCT DICOM directory", None))
+        self.atlas_group.setTitle(QCoreApplication.translate("DeepUSNavConsole", u"Population Atlas \u2014 L4 localisation", None))
+        self.atlas_status.setText(QCoreApplication.translate("DeepUSNavConsole", u"Atlas: waiting for inference node", None))
+        self.atlas_coordinate.setText(QCoreApplication.translate("DeepUSNavConsole", u"u-hat: --", None))
+        self.atlas_offset.setText(QCoreApplication.translate("DeepUSNavConsole", u"offset to L4 [mm]: --", None))
+        self.atlas_goal.setText(QCoreApplication.translate("DeepUSNavConsole", u"L4 goal cost: --", None))
+        self.atlas_belief.setText(QCoreApplication.translate("DeepUSNavConsole", u"retrieval belief: --", None))
+        self.atlas_model.setText(QCoreApplication.translate("DeepUSNavConsole", u"model: --", None))
+        self.atlas_contract.setText(QCoreApplication.translate("DeepUSNavConsole", u"Atlas coordinates are anatomical estimates, not robot Cartesian coordinates. Do not send them directly to the controller.", None))
         self.jog_group.setTitle(QCoreApplication.translate("DeepUSNavConsole", u"Manual Cartesian jog", None))
         self.jog_step_label.setText(QCoreApplication.translate("DeepUSNavConsole", u"Step [mm]", None))
         self.jog_frame_label.setText(QCoreApplication.translate("DeepUSNavConsole", u"Frame", None))

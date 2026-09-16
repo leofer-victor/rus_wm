@@ -8,6 +8,7 @@ safety limits belong to the real-time controller computer.
 
 from __future__ import annotations
 
+import json
 import math
 import os
 from pathlib import Path
@@ -73,6 +74,7 @@ class DeepUSNavRosNode(Node):
             "robot_wrench_topic": "/fr3/state/external_wrench",
             "robot_mode_topic": "/fr3/state/mode",
             "inference_status_topic": "/deepusnav/inference/status",
+            "atlas_result_topic": "/deepusnav/atlas/localisation",
             "inference_enable_service": "/deepusnav/inference/set_enabled",
             "jog_command_topic": "/deepusnav/operator/jog_command",
             "stop_service": "/fr3/operator/stop",
@@ -107,6 +109,7 @@ class DeepUSNavRosNode(Node):
         self.robot_wrench: WrenchStamped | None = None
         self.robot_mode = "unknown"
         self.inference_status = "not connected"
+        self.atlas_result: dict | None = None
         self.received_at: dict[str, float] = {}
         self.image_times: list[float] = []
 
@@ -128,6 +131,9 @@ class DeepUSNavRosNode(Node):
         )
         self.create_subscription(
             String, self.params["inference_status_topic"], self._on_inference, status_qos
+        )
+        self.create_subscription(
+            String, self.params["atlas_result_topic"], self._on_atlas, status_qos
         )
 
         self.jog_publisher = self.create_publisher(
@@ -185,6 +191,16 @@ class DeepUSNavRosNode(Node):
     def _on_inference(self, msg: String) -> None:
         self.inference_status = msg.data or "unknown"
         self._stamp("inference")
+
+    def _on_atlas(self, msg: String) -> None:
+        try:
+            result = json.loads(msg.data)
+            if not isinstance(result, dict) or "status" not in result:
+                raise ValueError("expected a JSON object with a status field")
+            self.atlas_result = result
+            self._stamp("atlas")
+        except (json.JSONDecodeError, ValueError) as exc:
+            self.get_logger().error(f"invalid Atlas result: {exc}")
 
     @property
     def image_rate_hz(self) -> float:
@@ -373,6 +389,72 @@ class DeepUSNavConsole(QMainWindow):
             else "color: #ff6666"
         )
         self.ui.inference_status.setText(f"Inference: {self.ros.inference_status}")
+        self._refresh_atlas()
+
+    def _refresh_atlas(self) -> None:
+        result = self.ros.atlas_result
+        age = self.ros.age("atlas")
+        if result is None:
+            self.ui.atlas_status.setText("Atlas: waiting for inference node")
+            self.ui.atlas_status.setStyleSheet("color: #ff6666; font-weight: bold;")
+            self.ui.atlas_coordinate.setText("u-hat: --")
+            self.ui.atlas_offset.setText("offset to L4 [mm]: --")
+            self.ui.atlas_goal.setText("L4 goal cost: --")
+            self.ui.atlas_belief.setText("retrieval belief: --")
+            self.ui.atlas_model.setText("model: --")
+            return
+
+        model = (
+            f"{result.get('encoder', '?')} / {result.get('representation', '?')} | "
+            f"{result.get('canonical_frame', '?')} | bank {result.get('bank_size', 0):,}"
+        )
+        self.ui.atlas_model.setText(f"model: {model}")
+        if result.get("status") != "ok":
+            self.ui.atlas_status.setText(f"Atlas: {result.get('status', 'unknown')}")
+            self.ui.atlas_status.setStyleSheet("color: #d6b66b; font-weight: bold;")
+            return
+
+        stale = age > float(self.ros.params["image_timeout_sec"]) * 2.0
+        latency = float(result.get("latency_ms", float("nan")))
+        self.ui.atlas_status.setText(
+            f"Atlas: {'stale' if stale else 'live'} | age {age:.2f} s | {latency:.0f} ms"
+        )
+        self.ui.atlas_status.setStyleSheet(
+            "color: #ff6666; font-weight: bold;"
+            if stale else "color: #55dd88; font-weight: bold;"
+        )
+
+        coordinate = result.get("coordinate_u", [float("nan")] * 3)
+        offset = result.get("offset_to_target_mm", [float("nan")] * 3)
+        self.ui.atlas_coordinate.setText(
+            "u-hat [canonical]  " + "  ".join(f"{float(v):+.4f}" for v in coordinate)
+        )
+        self.ui.atlas_offset.setText(
+            "offset to L4 [mm]  " + "  ".join(f"{float(v):+.1f}" for v in offset)
+        )
+
+        expected = float(result.get("expected_goal_distance_mm", float("nan")))
+        probability = 100.0 * float(result.get("target_probability", float("nan")))
+        tolerance = float(result.get("target_tolerance_mm", float("nan")))
+        inside = bool(result.get("within_target", False))
+        self.ui.atlas_goal.setText(
+            f"L4 expected cost {expected:.1f} mm | posterior within "
+            f"{tolerance:g} mm: {probability:.0f}%"
+        )
+        self.ui.atlas_goal.setStyleSheet(
+            "color: #55dd88; font-weight: bold;"
+            if inside else "color: #d6b66b; font-weight: bold;"
+        )
+
+        spread = float(result.get("neighbour_spread_mm", float("nan")))
+        entropy = float(result.get("entropy_bits", float("nan")))
+        entropy_max = float(result.get("entropy_bits_max", float("nan")))
+        patients = result.get("distinct_patients")
+        patient_text = "--" if patients is None else str(patients)
+        self.ui.atlas_belief.setText(
+            f"neighbour spread {spread:.1f} mm | entropy {entropy:.2f}/{entropy_max:.2f} bit "
+            f"| patients {patient_text}/{result.get('k', '?')}"
+        )
 
     def set_note(self, text: str, ok: bool | None = None) -> None:
         self.ui.notes.setText(text)

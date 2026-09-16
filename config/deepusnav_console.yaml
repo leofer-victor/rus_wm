@@ -6,6 +6,7 @@ deepusnav_console:
     robot_wrench_topic: /fr3/state/external_wrench
     robot_mode_topic: /fr3/state/mode
     inference_status_topic: /deepusnav/inference/status
+    atlas_result_topic: /deepusnav/atlas/localisation
     inference_enable_service: /deepusnav/inference/set_enabled
 
     jog_command_topic: /deepusnav/operator/jog_command
@@ -30,16 +31,26 @@ deepusnav_console:
       - /fr3/state/mode
       - /deepusnav/inference/status
       - /deepusnav/inference/action_proposal
+      - /deepusnav/atlas/localisation
       - /deepusnav/operator/jog_command
 
 deepusnav_inference:
   ros__parameters:
-    deepusnav_root: /home/robus/projects/python_projects/deepusnav
-    checkpoint_path: /home/robus/projects/python_projects/deepusnav/training_setup_and_weights/checkpoints/dinov2_dino_wm_main.pt
+    deepusnav_root: ~/projects/python_projects/deepusnav
+    checkpoint_path: ~/projects/python_projects/deepusnav/training_setup_and_weights/checkpoints/dinov2_dino_wm_main.pt
     # Optional. When empty, the node runs checkpoint/latency health inference only.
     # With a grayscale target image, it also publishes a greedy policy-space proposal.
     goal_image_path: ""
     device: cuda
+
+    # Population Atlas: frozen V-JEPA2 visual features -> metric embedding ->
+    # k-nearest training-frame coordinates in the spine_cpr canonical frame.
+    atlas_enabled: true
+    atlas_index_path: ~/projects/python_projects/deepusnav/training_setup_and_weights/atlas/heads/vjepa2_vitl__grid4x4__metric.pt
+    atlas_target_path: ~/projects/python_projects/deepusnav/training_setup_and_weights/atlas/target_spine_cpr.json
+    atlas_result_topic: /deepusnav/atlas/localisation
+    atlas_k: 8
+    atlas_target_tolerance_mm: 20.0
 
     ultrasound_topic: /deepusnav/ultrasound/image
     robot_pose_topic: /fr3/state/current_pose
