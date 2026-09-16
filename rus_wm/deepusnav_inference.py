@@ -169,8 +169,8 @@ class DeepUSNavInference(Node):
         os.chdir(root)
 
         import torch
-        from deepusnav.models.world_model import LatentWorldModel, load_weights
-        from deepusnav.models.world_model_data import ActionStats
+        from models.world_model import LatentWorldModel, load_weights
+        from models.world_model_data import ActionStats
 
         requested = str(self.params["device"])
         if requested.startswith("cuda") and not torch.cuda.is_available():
@@ -274,7 +274,7 @@ class DeepUSNavInference(Node):
         return response
 
     def _encode(self, image: np.ndarray):
-        from deepusnav.models.world_model_data import as_unit_interval, letterbox
+        from models.world_model_data import as_unit_interval, letterbox
 
         unit = as_unit_interval(image)
         x = letterbox(self.torch.from_numpy(unit[None]), self.input_size, self.patch)

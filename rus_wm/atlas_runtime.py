@@ -60,7 +60,7 @@ class AtlasRuntime:
                 sys.path.insert(0, value)
 
         import torch
-        from deepusnav.models.atlas_probe import load_metric_index
+        from models.atlas_probe import load_metric_index
 
         self.torch = torch
         if self.device.startswith("cuda") and not torch.cuda.is_available():
@@ -152,7 +152,7 @@ class AtlasRuntime:
         }
 
     def _encode(self, image: np.ndarray):
-        from deepusnav.models.world_model_data import as_unit_interval, letterbox
+        from models.world_model_data import as_unit_interval, letterbox
 
         gray = np.asarray(image)
         if gray.ndim == 3:
