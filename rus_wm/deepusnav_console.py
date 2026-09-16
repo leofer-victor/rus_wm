@@ -53,6 +53,9 @@ except ImportError as exc:  # generated from ui/deepusnav.ui by the developer
     ) from exc
 
 
+DEFAULT_ULTRASOUND_TOPIC = "/frame_grabber/us_img"
+
+
 def _sensor_qos() -> QoSProfile:
     return QoSProfile(
         history=HistoryPolicy.KEEP_LAST,
@@ -68,7 +71,7 @@ class DeepUSNavRosNode(Node):
     def __init__(self) -> None:
         super().__init__("deepusnav_console")
         defaults = {
-            "ultrasound_topic": "/deepusnav/ultrasound/image",
+            "ultrasound_topic": DEFAULT_ULTRASOUND_TOPIC,
             "robot_pose_topic": "/fr3/current_pose",
             "robot_joint_state_topic": "/fr3/joint_states",
             "robot_wrench_topic": "/fr3/state/external_wrench",
@@ -90,7 +93,7 @@ class DeepUSNavRosNode(Node):
             "cbct_directory": "",
             "bag_directory": "~/deepusnav_bags",
             "record_topics": [
-                "/deepusnav/ultrasound/image",
+                "/frame_grabber/us_img",
                 "/fr3/current_pose",
                 "/fr3/state/joint_states",
                 "/fr3/state/external_wrench",
@@ -98,7 +101,7 @@ class DeepUSNavRosNode(Node):
                 "/deepusnav/inference/status",
                 "/deepusnav/operator/jog_command",
                 "/deepusnav/operator/jog_status",
-                "/topic_joint_impedance_controller/target_pose",
+                "/topic_joint_velocity_controller/target_pose",
             ],
         }
         for name, value in defaults.items():
@@ -119,6 +122,9 @@ class DeepUSNavRosNode(Node):
 
         qos = _sensor_qos()
         self.create_subscription(Image, self.params["ultrasound_topic"], self._on_image, qos)
+        self.get_logger().info(
+            f"Subscribing to ultrasound images on {self.params['ultrasound_topic']}"
+        )
         self.create_subscription(PoseStamped, self.params["robot_pose_topic"], self._on_pose, qos)
         self.create_subscription(
             JointState, self.params["robot_joint_state_topic"], self._on_joints, qos

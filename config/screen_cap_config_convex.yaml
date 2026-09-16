@@ -1,0 +1,11 @@
+frame_cropped_coordinates:
+  x0: 520
+  x1: 1400
+  y0: 180
+  y1: 840
+frame_size:
+  height: 1200
+  width: 1920
+video_index: 2
+hz: 15
+flip_horizontal: false

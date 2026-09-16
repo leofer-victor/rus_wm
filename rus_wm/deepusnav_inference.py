@@ -32,6 +32,7 @@ from std_msgs.msg import Float32MultiArray, String
 from std_srvs.srv import SetBool
 
 from .atlas_runtime import AtlasRuntime
+from .model_profiles import resolve_model_profile
 
 
 def _sensor_qos() -> QoSProfile:
@@ -44,18 +45,19 @@ def _sensor_qos() -> QoSProfile:
 
 
 class DeepUSNavInference(Node):
-    """Load one checkpoint and run guarded, low-rate inference on the latest frame."""
+    """Load selected model components and run guarded inference on the latest frame."""
 
     def __init__(self) -> None:
         super().__init__("deepusnav_inference")
         default_root = Path.home() / "projects" / "python_projects" / "deepusnav"
         defaults = {
             "deepusnav_root": str(default_root),
-            "checkpoint_path": str(default_root.joinpath(
-                "training_setup_and_weights/checkpoints/dinov2_dino_wm_main.pt"
-            )),
+            "model_profile": "dino",
+            # Empty selects the checkpoint belonging to model_profile.
+            "checkpoint_path": "",
             "goal_image_path": "",
-            "atlas_enabled": True,
+            # Used only by the fully manual custom profile.
+            "atlas_enabled": False,
             "atlas_index_path": str(default_root.joinpath(
                 "training_setup_and_weights/atlas/heads/",
                 "vjepa2_vitl__grid4x4__metric.pt",
@@ -67,7 +69,7 @@ class DeepUSNavInference(Node):
             "atlas_k": 8,
             "atlas_target_tolerance_mm": 20.0,
             "device": "cuda",
-            "ultrasound_topic": "/deepusnav/ultrasound/image",
+            "ultrasound_topic": "/frame_grabber/us_img",
             "robot_pose_topic": "/fr3/current_pose",
             "status_topic": "/deepusnav/inference/status",
             "proposal_topic": "/deepusnav/inference/action_proposal",
@@ -79,6 +81,12 @@ class DeepUSNavInference(Node):
         for name, value in defaults.items():
             self.declare_parameter(name, value)
         self.params = {name: self.get_parameter(name).value for name in defaults}
+        self.model_profile = resolve_model_profile(
+            self.params["model_profile"],
+            self.params["deepusnav_root"],
+            self.params["checkpoint_path"],
+            bool(self.params["atlas_enabled"]),
+        )
 
         self.bridge = CvBridge()
         self._lock = threading.Lock()
@@ -119,11 +127,23 @@ class DeepUSNavInference(Node):
             callback_group=callbacks,
         )
 
-        self._publish_status("loading world model")
-        self._load_model()
+        self.world_model = None
+        self.goal_latent = None
+        self.device = str(self.params["device"])
+        if self.model_profile.world_model_enabled:
+            self._publish_status(f"loading {self.model_profile.name} world model")
+            self._load_model(self.model_profile.checkpoint_path)
         self.atlas = None
-        if bool(self.params["atlas_enabled"]):
+        if self.model_profile.atlas_enabled:
             self._publish_status("loading population atlas")
+            encoder_cache = {}
+            if self.model_profile.world_model_enabled:
+                encoder_cache[self.encoder_name] = (
+                    self.encoder,
+                    self.input_size,
+                    self.patch,
+                    self.feature_key,
+                )
             self.atlas = AtlasRuntime(
                 deepusnav_root=self.params["deepusnav_root"],
                 index_path=self.params["atlas_index_path"],
@@ -131,23 +151,21 @@ class DeepUSNavInference(Node):
                 device=self.device,
                 k=int(self.params["atlas_k"]),
                 target_tolerance_mm=float(self.params["atlas_target_tolerance_mm"]),
-                encoder_cache={
-                    self.encoder_name: (
-                        self.encoder,
-                        self.input_size,
-                        self.patch,
-                        self.feature_key,
-                    )
-                },
+                encoder_cache=encoder_cache,
             )
+            self.device = self.atlas.device
             info = String()
             info.data = json.dumps({"status": "ready", **self.atlas.model_info()})
             self.atlas_publisher.publish(info)
         period = 1.0 / max(0.1, float(self.params["inference_rate_hz"]))
         self.create_timer(period, self._tick, callback_group=callbacks)
-        mode = "goal-directed" if self.goal_latent is not None else "shadow"
-        atlas_mode = ", atlas" if self.atlas is not None else ""
-        self._publish_status(f"ready ({mode}{atlas_mode}, {self.device})")
+        if self.model_profile.world_model_enabled:
+            mode = "goal-directed" if self.goal_latent is not None else "shadow"
+        else:
+            mode = "atlas-only"
+        self._publish_status(
+            f"ready (profile={self.model_profile.name}, {mode}, {self.device})"
+        )
 
     def _publish_status(self, text: str) -> None:
         msg = String()
@@ -155,9 +173,11 @@ class DeepUSNavInference(Node):
         self.status_publisher.publish(msg)
         self.get_logger().info(text)
 
-    def _load_model(self) -> None:
+    def _load_model(self, checkpoint_path: Path | None) -> None:
         root = Path(str(self.params["deepusnav_root"])).expanduser().resolve()
-        checkpoint = Path(str(self.params["checkpoint_path"])).expanduser().resolve()
+        if checkpoint_path is None:
+            raise ValueError("world-model profile did not resolve a checkpoint")
+        checkpoint = checkpoint_path
         if not (root / "src" / "deepusnav").is_dir():
             raise FileNotFoundError(f"DeepUSNav source package not found under {root}")
         if not checkpoint.is_file():
@@ -319,7 +339,10 @@ class DeepUSNavInference(Node):
         self._last_wait_reason = ""
         self._busy = True
         try:
-            proposal, elapsed_ms = self._infer(image)
+            proposal = None
+            world_model_ms = None
+            if self.model_profile.world_model_enabled:
+                proposal, world_model_ms = self._infer(image)
             atlas_ms = None
             if self.atlas is not None:
                 atlas_result = self.atlas.localise(image)
@@ -329,18 +352,24 @@ class DeepUSNavInference(Node):
                 self.atlas_publisher.publish(atlas_msg)
                 atlas_ms = float(atlas_result["latency_ms"])
             if proposal is None:
-                timing = f"WM {elapsed_ms:.0f} ms"
+                timing_parts = []
+                if world_model_ms is not None:
+                    timing_parts.append(f"WM {world_model_ms:.0f} ms")
                 if atlas_ms is not None:
-                    timing += f" | Atlas {atlas_ms:.0f} ms"
+                    timing_parts.append(f"Atlas {atlas_ms:.0f} ms")
+                timing = " | ".join(timing_parts)
+                run_mode = (
+                    "atlas" if not self.model_profile.world_model_enabled else "shadow"
+                )
                 self._publish_status(
-                    f"running shadow | {self.encoder_name} | {timing}"
+                    f"running {run_mode} | profile={self.model_profile.name} | {timing}"
                 )
                 return
             msg = Float32MultiArray()
             msg.data = [float(v) for v in proposal]
             self.proposal_publisher.publish(msg)
             action = ", ".join(f"{v:+.2f}" for v in proposal)
-            timing = f"WM {elapsed_ms:.0f} ms"
+            timing = f"WM {world_model_ms:.0f} ms"
             if atlas_ms is not None:
                 timing += f" | Atlas {atlas_ms:.0f} ms"
             self._publish_status(f"running | action [{action}] | {timing}")

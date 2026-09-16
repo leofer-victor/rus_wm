@@ -88,7 +88,7 @@ class JogAdapter(Node):
         defaults = {
             "robot_pose_topic": "/fr3/current_pose",
             "jog_command_topic": "/deepusnav/operator/jog_command",
-            "target_pose_topic": "/topic_joint_impedance_controller/target_pose",
+            "target_pose_topic": "/topic_joint_velocity_controller/target_pose",
             "status_topic": "/deepusnav/operator/jog_status",
             "base_frame": "fr3_link0",
             "tool_frame": "fr3_hand_tcp",

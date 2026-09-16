@@ -57,6 +57,6 @@ def test_jog_topics_are_consistent_and_recorded() -> None:
     assert console["robot_pose_topic"] == adapter["robot_pose_topic"]
     assert console["jog_command_topic"] == adapter["jog_command_topic"]
     assert console["jog_status_topic"] == adapter["status_topic"]
-    assert adapter["target_pose_topic"] == "/topic_joint_impedance_controller/target_pose"
+    assert adapter["target_pose_topic"] == "/topic_joint_velocity_controller/target_pose"
     assert adapter["target_pose_topic"] in console["record_topics"]
     assert adapter["status_topic"] in console["record_topics"]

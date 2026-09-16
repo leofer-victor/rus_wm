@@ -1,6 +1,14 @@
+us_screen_pub:
+  ros__parameters:
+    probe_type: linear
+    # Empty selects config/screen_cap_config_<probe_type>.yaml from this package.
+    capture_profile: ""
+    output_topic: /frame_grabber/us_img
+    frame_id: ultrasound_frame
+
 deepusnav_console:
   ros__parameters:
-    ultrasound_topic: /deepusnav/ultrasound/image
+    ultrasound_topic: /frame_grabber/us_img
     robot_pose_topic: /fr3/current_pose
     robot_joint_state_topic: /fr3/joint_states
     robot_wrench_topic: /fr3/state/external_wrench
@@ -25,7 +33,7 @@ deepusnav_console:
     cbct_directory: ""
     bag_directory: ~/deepusnav_bags
     record_topics:
-      - /deepusnav/ultrasound/image
+      - /frame_grabber/us_img
       - /fr3/current_pose
       - /fr3/state/joint_states
       - /fr3/state/external_wrench
@@ -35,13 +43,13 @@ deepusnav_console:
       - /deepusnav/atlas/localisation
       - /deepusnav/operator/jog_command
       - /deepusnav/operator/jog_status
-      - /topic_joint_impedance_controller/target_pose
+      - /topic_joint_velocity_controller/target_pose
 
 deepusnav_jog_adapter:
   ros__parameters:
     robot_pose_topic: /fr3/current_pose
     jog_command_topic: /deepusnav/operator/jog_command
-    target_pose_topic: /topic_joint_impedance_controller/target_pose
+    target_pose_topic: /topic_joint_velocity_controller/target_pose
     status_topic: /deepusnav/operator/jog_status
 
     # The controller interprets every target PoseStamped in the robot base frame.
@@ -62,7 +70,10 @@ deepusnav_jog_adapter:
 deepusnav_inference:
   ros__parameters:
     deepusnav_root: ~/projects/python_projects/deepusnav
-    checkpoint_path: ~/projects/python_projects/deepusnav/training_setup_and_weights/checkpoints/dinov2_dino_wm_main.pt
+    # dino | vjepa | atlas | dino_atlas | vjepa_atlas | custom
+    model_profile: dino
+    # Empty uses the checkpoint selected by model_profile.
+    checkpoint_path: ""
     # Optional. When empty, the node runs checkpoint/latency health inference only.
     # With a grayscale target image, it also publishes a greedy policy-space proposal.
     goal_image_path: ""
@@ -70,14 +81,15 @@ deepusnav_inference:
 
     # Population Atlas: frozen V-JEPA2 visual features -> metric embedding ->
     # k-nearest training-frame coordinates in the spine_cpr canonical frame.
-    atlas_enabled: true
+    # Used only with model_profile=custom. Named profiles decide this automatically.
+    atlas_enabled: false
     atlas_index_path: ~/projects/python_projects/deepusnav/training_setup_and_weights/atlas/heads/vjepa2_vitl__grid4x4__metric.pt
     atlas_target_path: ~/projects/python_projects/deepusnav/training_setup_and_weights/atlas/target_spine_cpr.json
     atlas_result_topic: /deepusnav/atlas/localisation
     atlas_k: 8
     atlas_target_tolerance_mm: 20.0
 
-    ultrasound_topic: /deepusnav/ultrasound/image
+    ultrasound_topic: /frame_grabber/us_img
     robot_pose_topic: /fr3/current_pose
     status_topic: /deepusnav/inference/status
     proposal_topic: /deepusnav/inference/action_proposal

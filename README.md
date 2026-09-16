@@ -35,7 +35,7 @@ Subscriptions are configurable in `config/deepusnav_console.yaml`:
 
 | Data | Default topic | Type |
 |---|---|---|
-| Ultrasound | `/deepusnav/ultrasound/image` | `sensor_msgs/msg/Image` |
+| Ultrasound | `/frame_grabber/us_img` | `sensor_msgs/msg/Image` |
 | End-effector pose | `/fr3/current_pose` | `geometry_msgs/msg/PoseStamped` |
 | Joints | `/fr3/state/joint_states` | `sensor_msgs/msg/JointState` |
 | External wrench | `/fr3/state/external_wrench` | `geometry_msgs/msg/WrenchStamped` |
@@ -109,6 +109,29 @@ python -m colcon build --symlink-install
 source install/setup.bash
 ros2 launch rus_wm deepusnav_console.launch.py
 ```
+
+Select the inference components at launch time; changing profiles does not require a
+rebuild:
+
+```bash
+# DINOv2 encoder + DINO-WM predictor (default)
+ros2 launch rus_wm deepusnav_console.launch.py model:=dino
+
+# V-JEPA2 encoder + V-JEPA2-AC predictor
+ros2 launch rus_wm deepusnav_console.launch.py model:=vjepa
+
+# Population Atlas only (no additional world model)
+ros2 launch rus_wm deepusnav_console.launch.py model:=atlas
+
+# A world model and Atlas in the same process
+ros2 launch rus_wm deepusnav_console.launch.py model:=vjepa_atlas
+```
+
+The additional `dino_atlas` profile is also available. For an experimental checkpoint,
+use `model:=dino checkpoint_path:=/absolute/path/model.pt`, or use `model:=custom` and set
+both `checkpoint_path` and the custom `atlas_enabled` value in the YAML configuration.
+The profile is selected before the inference process loads PyTorch, so unused model
+families do not consume GPU memory.
 
 PySide6 and a Qt-compatible VTK Python build must be visible to the Python interpreter
 used by ROS 2.  The UI is expected to run in an environment that can also import
