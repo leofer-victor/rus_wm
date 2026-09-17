@@ -27,7 +27,7 @@ deepusnav_console:
     state_timeout_sec: 0.5
     image_timeout_sec: 1.0
     default_jog_step_mm: 1.0
-    max_jog_step_mm: 5.0
+    max_jog_step_mm: 50.0
     command_cooldown_sec: 0.15
 
     cbct_directory: ""
@@ -59,7 +59,7 @@ deepusnav_jog_adapter:
     # Guard every relative request before converting it to an absolute pose target.
     pose_timeout_sec: 0.5
     command_timeout_sec: 0.5
-    max_jog_step_mm: 5.0
+    max_jog_step_mm: 50.0
     min_command_interval_sec: 0.15
     require_controller_subscriber: true
 

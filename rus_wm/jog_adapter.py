@@ -94,7 +94,7 @@ class JogAdapter(Node):
             "tool_frame": "fr3_hand_tcp",
             "pose_timeout_sec": 0.5,
             "command_timeout_sec": 0.5,
-            "max_jog_step_mm": 5.0,
+            "max_jog_step_mm": 50.0,
             "min_command_interval_sec": 0.15,
             "workspace_min_xyz_m": [-0.8, -0.8, 0.05],
             "workspace_max_xyz_m": [0.8, 0.8, 1.0],

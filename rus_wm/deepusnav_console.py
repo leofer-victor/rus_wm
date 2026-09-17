@@ -88,7 +88,7 @@ class DeepUSNavRosNode(Node):
             "state_timeout_sec": 0.5,
             "image_timeout_sec": 1.0,
             "default_jog_step_mm": 1.0,
-            "max_jog_step_mm": 5.0,
+            "max_jog_step_mm": 50.0,
             "command_cooldown_sec": 0.15,
             "cbct_directory": "",
             "bag_directory": "~/deepusnav_bags",
