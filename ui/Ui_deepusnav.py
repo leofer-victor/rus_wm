@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'deepusnav.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.11.1
+## Created by: Qt User Interface Compiler version 6.11.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -81,14 +81,15 @@ class Ui_DeepUSNavConsole(object):
         self.robot_pose.setObjectName(u"robot_pose")
         font = QFont()
         font.setFamilies([u"Monospace"])
+        font.setPointSize(12)
         self.robot_pose.setFont(font)
 
         self.robot_state_layout.addWidget(self.robot_pose)
 
         self.joint_state = QLabel(self.robot_state_group)
         self.joint_state.setObjectName(u"joint_state")
-        self.joint_state.setWordWrap(True)
         self.joint_state.setFont(font)
+        self.joint_state.setWordWrap(True)
 
         self.robot_state_layout.addWidget(self.joint_state)
 
@@ -171,15 +172,15 @@ class Ui_DeepUSNavConsole(object):
 
         self.atlas_model = QLabel(self.atlas_group)
         self.atlas_model.setObjectName(u"atlas_model")
-        self.atlas_model.setWordWrap(True)
         self.atlas_model.setStyleSheet(u"color: #aeb7c4; font-size: 10pt;")
+        self.atlas_model.setWordWrap(True)
 
         self.atlas_layout.addWidget(self.atlas_model)
 
         self.atlas_contract = QLabel(self.atlas_group)
         self.atlas_contract.setObjectName(u"atlas_contract")
-        self.atlas_contract.setWordWrap(True)
         self.atlas_contract.setStyleSheet(u"color: #d6b66b; font-size: 10pt;")
+        self.atlas_contract.setWordWrap(True)
 
         self.atlas_layout.addWidget(self.atlas_contract)
 
@@ -200,7 +201,7 @@ class Ui_DeepUSNavConsole(object):
         self.jog_step_mm = QDoubleSpinBox(self.jog_group)
         self.jog_step_mm.setObjectName(u"jog_step_mm")
         self.jog_step_mm.setMinimum(0.100000000000000)
-        self.jog_step_mm.setMaximum(5.000000000000000)
+        self.jog_step_mm.setMaximum(50.000000000000000)
         self.jog_step_mm.setSingleStep(0.100000000000000)
         self.jog_step_mm.setValue(1.000000000000000)
 
@@ -261,8 +262,8 @@ class Ui_DeepUSNavConsole(object):
 
         self.jog_contract = QLabel(self.jog_group)
         self.jog_contract.setObjectName(u"jog_contract")
-        self.jog_contract.setWordWrap(True)
         self.jog_contract.setStyleSheet(u"color: #d6b66b;")
+        self.jog_contract.setWordWrap(True)
 
         self.jog_outer_layout.addWidget(self.jog_contract)
 
@@ -373,3 +374,4 @@ class Ui_DeepUSNavConsole(object):
         self.stop_robot.setText(QCoreApplication.translate("DeepUSNavConsole", u"STOP MOTION", None))
         self.quit.setText(QCoreApplication.translate("DeepUSNavConsole", u"Quit", None))
     # retranslateUi
+
